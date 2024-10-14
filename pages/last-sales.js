@@ -4,13 +4,14 @@ import useSWR from "swr";
 // Fetcher function for SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-function LastSalesPage() {
+function LastSalesPage(props) {
   const { data, error } = useSWR(
     'https://pre-rendering-fetching-nextjs-default-rtdb.firebaseio.com/sales.json',
-    fetcher
+    fetcher,
+    { fallbackData: props.sales } // Use pre-fetched data from props
   );
 
-  const [sales, setSales] = useState([]);
+  const [sales, setSales] = useState(props.sales || []);
 
   useEffect(() => {
     if (data) {
@@ -32,12 +33,8 @@ function LastSalesPage() {
     return <p>Failed to Load.</p>;
   }
 
-  if (!data) {
+  if (!data && !sales.length) {
     return <p>Loading...</p>;
-  }
-
-  if (sales.length === 0) {
-    return <p>No sales data available</p>;
   }
 
   return (
@@ -50,5 +47,29 @@ function LastSalesPage() {
     </ul>
   );
 }
+
+export async function getStaticProps() {
+    const response = await fetch(
+      'https://pre-rendering-fetching-nextjs-default-rtdb.firebaseio.com/sales.json'
+    );
+    
+    const data = await response.json();
+  
+    const transformedSales = [];
+  
+    for (const key in data) {
+      transformedSales.push({
+        id: key,
+        username: data[key].username || 'Unknown User',  // Fallback for undefined username
+        volume: data[key].volume !== undefined ? data[key].volume : null,  // Ensure volume is not undefined
+      });
+    }
+  
+    return {
+      props: { sales: transformedSales },
+      revalidate: 10, // Re-generate the page every 10 seconds
+    };
+  }
+  
 
 export default LastSalesPage;
